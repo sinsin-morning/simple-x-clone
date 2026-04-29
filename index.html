@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimpleX</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #000;
+      --surface: #000;
+      --border: #2f3336;
+      --text: #e7e9ea;
+      --muted: #71767b;
+      --accent: #1d9bf0;
+      --accent-hover: #1a8cd8;
+      --danger: #f4212e;
+      --card-hover: #080808;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+    }
+
+    .layout {
+      display: flex;
+      width: 100%;
+      max-width: 1200px;
+    }
+
+    .sidebar {
+      width: 275px;
+      padding: 0 12px;
+      display: flex;
+      flex-direction: column;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      border-right: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 28px;
+      padding: 16px;
+      cursor: default;
+      user-select: none;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 12px 16px;
+      border-radius: 9999px;
+      cursor: pointer;
+      font-size: 20px;
+      transition: background 0.15s;
+      text-decoration: none;
+      color: var(--text);
+    }
+
+    .nav-item:hover { background: rgba(255,255,255,0.08); }
+
+    .nav-icon { font-size: 24px; width: 28px; text-align: center; }
+    .nav-label { font-weight: 500; }
+
+    .user-menu {
+      margin-top: auto;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      border-radius: 9999px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .user-menu:hover { background: rgba(255,255,255,0.08); }
+
+    .avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .user-info { flex: 1; overflow: hidden; }
+    .user-name { font-weight: 700; font-size: 15px; }
+    .user-handle { color: var(--muted); font-size: 14px; }
+
+    .main {
+      flex: 1;
+      max-width: 600px;
+      border-right: 1px solid var(--border);
+    }
+
+    .col-header {
+      position: sticky;
+      top: 0;
+      background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(12px);
+      padding: 16px 16px 12px;
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+      font-size: 20px;
+      font-weight: 700;
+    }
+
+    .compose {
+      display: flex;
+      gap: 12px;
+      padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compose-body { flex: 1; }
+
+    .compose textarea {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      font-size: 20px;
+      resize: none;
+      outline: none;
+      line-height: 1.5;
+      min-height: 56px;
+      font-family: inherit;
+    }
+
+    .compose textarea::placeholder { color: var(--muted); }
+
+    .compose-footer {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      margin-top: 8px;
+      gap: 12px;
+    }
+
+    .char-count { font-size: 14px; color: var(--muted); }
+    .char-count.warn { color: #ffd400; }
+    .char-count.over { color: var(--danger); }
+
+    .btn-post {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 9999px;
+      padding: 8px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-post:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn-post:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .post {
+      display: flex;
+      gap: 12px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.15s;
+    }
+
+    .post:hover { background: var(--card-hover); }
+    .post-body { flex: 1; min-width: 0; }
+
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 2px;
+    }
+
+    .post-username { font-weight: 700; font-size: 15px; }
+    .post-handle { color: var(--muted); font-size: 14px; }
+    .post-time { color: var(--muted); font-size: 14px; margin-left: auto; }
+
+    .post-content {
+      font-size: 15px;
+      line-height: 1.6;
+      word-break: break-word;
+      white-space: pre-wrap;
+    }
+
+    .post-actions { display: flex; gap: 16px; margin-top: 10px; }
+
+    .post-action {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 4px;
+      border-radius: 4px;
+    }
+
+    .post-action.delete:hover { color: var(--danger); }
+
+    #auth-view {
+      display: flex;
+      min-height: 100vh;
+      width: 100%;
+    }
+
+    .auth-hero {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 280px;
+      user-select: none;
+    }
+
+    .auth-panel {
+      width: 480px;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+
+    .auth-panel h2 { font-size: 32px; font-weight: 700; margin-bottom: 32px; }
+
+    .auth-tabs {
+      display: flex;
+      margin-bottom: 24px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s;
+    }
+
+    .auth-tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    .form-group { margin-bottom: 16px; }
+
+    .form-group label {
+      display: block;
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .form-group input {
+      width: 100%;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      color: var(--text);
+      font-size: 16px;
+      outline: none;
+      transition: border-color 0.15s;
+      font-family: inherit;
+    }
+
+    .form-group input:focus { border-color: var(--accent); }
+
+    .btn-auth {
+      width: 100%;
+      background: var(--text);
+      color: var(--bg);
+      border: none;
+      border-radius: 9999px;
+      padding: 14px;
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      font-family: inherit;
+    }
+
+    .btn-auth:hover:not(:disabled) { opacity: 0.9; }
+    .btn-auth:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .auth-error {
+      background: rgba(244,33,46,0.1);
+      border: 1px solid var(--danger);
+      color: var(--danger);
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 14px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    #loading-view {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      width: 100%;
+      font-size: 32px;
+    }
+
+    .spinner { display: inline-block; animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .empty-state {
+      padding: 48px 16px;
+      text-align: center;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    @media (max-width: 700px) {
+      .sidebar { display: none; }
+      .auth-hero { display: none; }
+      .auth-panel { width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="loading-view"><span class="spinner">✦</span></div>
+
+<div id="auth-view" style="display:none">
+  <div class="auth-hero">✦</div>
+  <div class="auth-panel">
+    <h2>SimpleX へようこそ</h2>
+    <div class="auth-tabs">
+      <button class="auth-tab active" onclick="switchTab('login')">ログイン</button>
+      <button class="auth-tab" onclick="switchTab('signup')">新規登録</button>
+    </div>
+    <div id="auth-error" class="auth-error"></div>
+    <div id="login-form">
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="login-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>パスワード</label>
+        <input type="password" id="login-password" placeholder="••••••••"
+               onkeydown="if(event.key==='Enter') handleLogin()" />
+      </div>
+      <button class="btn-auth" id="btn-login" onclick="handleLogin()">ログイン</button>
+    </div>
+    <div id="signup-form" style="display:none">
+      <div class="form-group">
+        <label>ユーザー名（英数字・アンダーバーのみ）</label>
+        <input type="text" id="signup-username" placeholder="username" />
+      </div>
+      <div class="form-group">
+        <label>メールアドレス</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" />
+      </div>
+      <div class="form-group">
+        <label>パスワード（6文字以上）</label>
+        <input type="password" id="signup-password" placeholder="••••••••"
+               onkeydown="if(event.key==='Enter') handleSignup()" />
+      </div>
+      <button class="btn-auth" id="btn-signup" onclick="handleSignup()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<div id="app-view" style="display:none" class="layout">
+  <div class="sidebar">
+    <div class="logo">✦</div>
+    <a class="nav-item" href="#" onclick="return false">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-label">ホーム</span>
+    </a>
+    <div class="user-menu" onclick="handleLogout()">
+      <div class="avatar" id="sidebar-avatar"></div>
+      <div class="user-info">
+        <div class="user-name" id="sidebar-name"></div>
+        <div class="user-handle" id="sidebar-handle"></div>
+      </div>
+      <span style="color:var(--muted);font-size:18px">···</span>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="col-header">ホーム</div>
+    <div class="compose">
+      <div class="avatar" id="compose-avatar"></div>
+      <div class="compose-body">
+        <textarea id="compose-text" placeholder="いまどうしてる？" maxlength="280"
+                  oninput="updateCharCount()" rows="3"></textarea>
+        <div class="compose-footer">
+          <span class="char-count" id="char-count">280</span>
+          <button class="btn-post" id="btn-post" onclick="handlePost()" disabled>投稿する</button>
+        </div>
+      </div>
+    </div>
+    <div id="timeline"></div>
+  </div>
+</div>
+
+<script>
+let supabaseClient = null;
+let currentUser = null;
+let currentProfile = null;
+let realtimeChannel = null;
+
+async function init() {
+  try {
+    const cfg = await fetch('/api/config').then(r => r.json());
+    supabaseClient = supabase.createClient(cfg.url, cfg.anonKey);
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    if (session) {
+      await enterApp(session.user);
+    } else {
+      showAuth();
+    }
+    supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (event === 'SIGNED_IN' && session) await enterApp(session.user);
+      else if (event === 'SIGNED_OUT') showAuth();
+    });
+  } catch (e) {
+    document.getElementById('loading-view').innerHTML =
+      '<div style="color:#f4212e;font-size:16px">設定の読み込みに失敗しました</div>';
+  }
+}
+
+function showAuth() {
+  document.getElementById('loading-view').style.display = 'none';
+  document.getElementById('app-view').style.display = 'none';
+  document.getElementById('auth-view').style.display = 'flex';
+}
+
+async function enterApp(user) {
+  currentUser = user;
+  const { data: profile } = await supabaseClient
+    .from('profiles').select('*').eq('id', user.id).single();
+  currentProfile = profile;
+  const initial = (profile?.username || 'U')[0].toUpperCase();
+  document.getElementById('sidebar-avatar').textContent = initial;
+  document.getElementById('compose-avatar').textContent = initial;
+  document.getElementById('sidebar-name').textContent = profile?.username || '';
+  document.getElementById('sidebar-handle').textContent = '@' + (profile?.username || '');
+  document.getElementById('loading-view').style.display = 'none';
+  document.getElementById('auth-view').style.display = 'none';
+  document.getElementById('app-view').style.display = 'flex';
+  await loadPosts();
+  subscribeRealtime();
+}
+
+function switchTab(tab) {
+  const isLogin = tab === 'login';
+  document.getElementById('login-form').style.display = isLogin ? 'block' : 'none';
+  document.getElementById('signup-form').style.display = isLogin ? 'none' : 'block';
+  document.querySelectorAll('.auth-tab').forEach((el, i) => {
+    el.classList.toggle('active', (i === 0) === isLogin);
+  });
+  clearAuthError();
+}
+
+function showAuthError(msg) {
+  const el = document.getElementById('auth-error');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function clearAuthError() {
+  const el = document.getElementById('auth-error');
+  el.textContent = '';
+  el.style.display = 'none';
+}
+
+async function handleLogin() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  if (!email || !password) return showAuthError('メールとパスワードを入力してください');
+  const btn = document.getElementById('btn-login');
+  btn.disabled = true; btn.textContent = '...';
+  clearAuthError();
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  if (error) {
+    showAuthError('メールアドレスまたはパスワードが正しくありません');
+    btn.disabled = false; btn.textContent = 'ログイン';
+  }
+}
+
+async function handleSignup() {
+  const username = document.getElementById('signup-username').value.trim();
+  const email = document.getElementById('signup-email').value.trim();
+  const password = document.getElementById('signup-password').value;
+  if (!username || !email || !password) return showAuthError('すべての項目を入力してください');
+  if (password.length < 6) return showAuthError('パスワードは6文字以上にしてください');
+  if (!/^[a-zA-Z0-9_]+$/.test(username)) return showAuthError('ユーザー名は英数字とアンダーバーのみ使えます');
+  const btn = document.getElementById('btn-signup');
+  btn.disabled = true; btn.textContent = '...';
+  clearAuthError();
+  const { error } = await supabaseClient.auth.signUp({
+    email, password, options: { data: { username } }
+  });
+  if (error) {
+    showAuthError(error.message);
+    btn.disabled = false; btn.textContent = '登録する';
+  }
+}
+
+async function handleLogout() {
+  if (realtimeChannel) supabaseClient.removeChannel(realtimeChannel);
+  await supabaseClient.auth.signOut();
+}
+
+function updateCharCount() {
+  const text = document.getElementById('compose-text').value;
+  const remaining = 280 - text.length;
+  const el = document.getElementById('char-count');
+  el.textContent = remaining;
+  el.className = 'char-count' + (remaining < 20 ? (remaining < 0 ? ' over' : ' warn') : '');
+  document.getElementById('btn-post').disabled = text.trim().length === 0 || remaining < 0;
+}
+
+async function handlePost() {
+  const content = document.getElementById('compose-text').value.trim();
+  if (!content || !currentUser) return;
+  const btn = document.getElementById('btn-post');
+  btn.disabled = true;
+  const { error } = await supabaseClient
+    .from('posts').insert({ user_id: currentUser.id, content });
+  if (!error) {
+    document.getElementById('compose-text').value = '';
+    updateCharCount();
+  }
+  btn.disabled = false;
+}
+
+async function handleDelete(postId) {
+  await supabaseClient.from('posts').delete().eq('id', postId);
+  document.getElementById('post-' + postId)?.remove();
+}
+
+async function loadPosts() {
+  const { data: posts } = await supabaseClient
+    .from('posts')
+    .select('*, profiles(username)')
+    .order('created_at', { ascending: false })
+    .limit(100);
+  const el = document.getElementById('timeline');
+  if (!posts || posts.length === 0) {
+    el.innerHTML = '<div class="empty-state">まだ投稿がありません。最初の一言をどうぞ！</div>';
+    return;
+  }
+  el.innerHTML = posts.map(renderPost).join('');
+}
+
+function renderPost(post) {
+  const username = post.profiles?.username || '不明';
+  const initial = username[0].toUpperCase();
+  const isOwn = post.user_id === currentUser?.id;
+  const time = formatTime(post.created_at);
+  return `
+    <div class="post" id="post-${post.id}">
+      <div class="avatar" style="background:${strColor(username)}">${initial}</div>
+      <div class="post-body">
+        <div class="post-header">
+          <span class="post-username">${esc(username)}</span>
+          <span class="post-handle">@${esc(username)}</span>
+          <span class="post-time">${time}</span>
+        </div>
+        <div class="post-content">${esc(post.content)}</div>
+        <div class="post-actions">
+          ${isOwn ? `<button class="post-action delete" onclick="handleDelete('${post.id}')">🗑 削除</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+}
+
+function subscribeRealtime() {
+  realtimeChannel = supabaseClient
+    .channel('posts-channel')
+    .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'posts' },
+      async (payload) => {
+        const { data: post } = await supabaseClient
+          .from('posts').select('*, profiles(username)').eq('id', payload.new.id).single();
+        if (!post) return;
+        const timeline = document.getElementById('timeline');
+        const empty = timeline.querySelector('.empty-state');
+        if (empty) empty.remove();
+        timeline.insertAdjacentHTML('afterbegin', renderPost(post));
+      })
+    .subscribe();
+}
+
+function esc(str) {
+  return String(str)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function formatTime(iso) {
+  const d = new Date(iso);
+  const diff = (Date.now() - d) / 1000;
+  if (diff < 60) return '今';
+  if (diff < 3600) return Math.floor(diff / 60) + '分';
+  if (diff < 86400) return Math.floor(diff / 3600) + '時間';
+  return `${d.getMonth() + 1}/${d.getDate()}`;
+}
+
+function strColor(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = str.charCodeAt(i) + ((h << 5) - h);
+  return `hsl(${h % 360}, 55%, 45%)`;
+}
+
+init();
+</script>
+</body>
+</html>
